@@ -14,7 +14,7 @@ from Moudle.Encoder import Encoder
 from Moudle.Attn import AttnDecoderRNN
 from dataset.Dataprocess import *
 from utils.times import timesince
-
+from utils.log import Log
 import argparse
 
 SOS_token = 0
@@ -26,7 +26,7 @@ teacher_forcing_ratio = 0.5
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--epochs', type=int, default=75000, help='Number of epochs to train.')
+parser.add_argument('--epochs', type=int, default=10000, help='Number of epochs to train.')
 parser.add_argument('--data_path', type=str, default='./data/data/eng-fra.txt', help='train dataset path.')
 parser.add_argument('--hidden_size', type=int, default=128, help='hidden_size')
 parser.add_argument('--teacher_forcing_ratio', type=float, default=.5)
@@ -35,6 +35,8 @@ parser.add_argument('--print_every', type=int, default=5000)
 parser.add_argument('--plot_every', type=int, default=5000)
 parser.add_argument('--save_path', type=str, default='./save/')
 args = parser.parse_args()
+log = Log(name="train", file_path='./log/train_log.txt')
+logger = log.get_log()
 
 
 def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, decoder_optimizer, criterion,
@@ -120,7 +122,7 @@ def train(input_tensor, target_tensor, encoder, decoder, encoder_optimizer, deco
     return loss.item() / target_length
 
 
-def trainIters(encoder, decoder, n_iters, input_lang, output_lang,Path, print_every=1000, plot_every=100,
+def trainIters(encoder, decoder, n_iters, input_lang, output_lang, Path, print_every=1000, plot_every=100,
                learning_rate=0.01):
     start = time()
     plot_losses = []
@@ -148,8 +150,11 @@ def trainIters(encoder, decoder, n_iters, input_lang, output_lang,Path, print_ev
             # 将总损失归0
             print_loss_total = 0
             # 打印日志，日志内容分别是：训练耗时，当前迭代步，当前进度百分比，当前平均损失
-            print('%s (%d %d%%) %.4f' % (timesince(start),
-                                         iter, iter / n_iters * 100, print_loss_avg))
+            #print('%s (%d %d%%) %.4f' % (timesince(start),
+             #                            iter, iter / n_iters * 100, print_loss_avg))
+
+            logger.info('%s (%d %d%%) training loss = %.4f' % (timesince(start),
+                                               iter, iter / n_iters * 100, print_loss_avg))
 
         # 当迭代步达到损失绘制间隔时
         if iter % plot_every == 0:
@@ -159,15 +164,20 @@ def trainIters(encoder, decoder, n_iters, input_lang, output_lang,Path, print_ev
             plot_losses.append(plot_loss_avg)
             # 总损失归0
             plot_loss_total = 0
-
-    plt.figure(figsize=(12,8),dpi=200)
+    logger.info('%s (%d %d%%) training loss = %.4f' % (timesince(start),
+                                                       iter, iter / n_iters * 100, print_loss_avg))
+    logger.info('-'*25+'train finish'+'-'*25)
+    logger.info('plot train loss figure')
+    plt.figure(figsize=(12, 8), dpi=200)
     plt.plot(plot_losses)
     plt.xlabel('epochs')
     plt.ylabel('loss')
     # 保存到指定路径
+
     plt.savefig("./s2s_loss.png")
-    torch.save(encoder,Path+'encoder_net.pkl')
-    torch.save(decoder,Path+'decoder_net.pkl')
+    torch.save(encoder, Path + 'encoder_net.pkl')
+    torch.save(decoder, Path + 'decoder_net.pkl')
+    logger.info('save model success!')
 
 
 if __name__ == '__main__':
@@ -183,4 +193,4 @@ if __name__ == '__main__':
     attn_decoder1 = AttnDecoderRNN(hidden_size, output_lang.n_words, dropout_p=0.1).to(device)
     print_every = 5000
     trainIters(encoder1, attn_decoder1, epochs, input_lang=input_lang, output_lang=output_lang,
-               print_every=args.print_every, plot_every=args.plot_every,Path=args.save_path)
+               print_every=args.print_every, plot_every=args.plot_every, Path=args.save_path)
